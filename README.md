@@ -1,4 +1,8 @@
 [![npm](https://img.shields.io/npm/v/@dexe-network/dexe-protocol.svg)](https://www.npmjs.com/package/@dexe-network/dexe-protocol)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Audited](https://img.shields.io/badge/Security-Audited-brightgreen.svg)](#audits-and-security)
+[![Maintained](https://img.shields.io/badge/Maintained-yes-green.svg)](https://github.com/PandaKitten96/DeXe-Protocol)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink.svg)](https://github.com/sponsors/PandaKitten96)
 
 <div align="center">
 <picture>
@@ -59,3 +63,45 @@ DeXe Protocol smart contracts have been audited by several external auditors, an
 #### [Hacken](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/hacken-2023-05-22.pdf)
 #### [Ambisafe](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/ambisafe-2023-07-18.pdf)
 #### [Ambisafe #2](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/ambisafe-2023-11-10.pdf)
+
+## 💰 Support & Donate
+
+DeXe Protocol is an open-source project. If you find it useful, please consider supporting its continued development and maintenance!
+
+Your support helps fund:
+- 🔒 Ongoing security audits
+- 🚀 New features and protocol improvements
+- 🐛 Bug fixes and maintenance
+- 📖 Documentation and community support
+
+### Ways to Support
+
+| Platform | Link |
+| :------- | :--- |
+| 💵 **Cash App** | [$imthepanda](https://cash.app/$imthepanda) |
+| ❤️ **GitHub Sponsors** | [Sponsor on GitHub](https://github.com/sponsors/PandaKitten96) |
+| ☕ **Buy Me a Coffee** | [buymeacoffee.com/pandakitten96](https://buymeacoffee.com/pandakitten96) |
+| 💳 **PayPal** | [paypal.me/pandakitten96](https://paypal.me/pandakitten96) |
+
+Every contribution, no matter how small, is deeply appreciated! ⭐ If you can't donate, consider starring the repository — it helps with visibility.
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how you can get involved:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/my-feature`)
+3. **Commit** your changes (`git commit -m 'Add my feature'`)
+4. **Push** to the branch (`git push origin feature/my-feature`)
+5. **Open** a Pull Request
+
+### Reporting Security Issues
+
+Please **do not** open public GitHub issues for security vulnerabilities. Instead, report them privately by emailing the maintainers or using [GitHub's private vulnerability reporting](https://github.com/PandaKitten96/DeXe-Protocol/security/advisories/new).
+
+### Contribution Guidelines
+
+- Follow the existing code style and conventions
+- Add tests for new functionality where applicable
+- Update documentation for any changed behavior
+- Be respectful and follow the code of conduct
