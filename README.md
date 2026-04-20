@@ -1,4 +1,7 @@
 [![npm](https://img.shields.io/npm/v/@dexe-network/dexe-protocol.svg)](https://www.npmjs.com/package/@dexe-network/dexe-protocol)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/PandaKitten96/DeXe-Protocol/actions/workflows/test-smart-contracts.yml/badge.svg)](https://github.com/PandaKitten96/DeXe-Protocol/actions/workflows/test-smart-contracts.yml)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/PandaKitten96?label=Sponsors&logo=githubsponsors)](https://github.com/sponsors/PandaKitten96)
 
 <div align="center">
 <picture>
@@ -11,6 +14,18 @@
 # DeXe Protocol
 
 The DeXe Protocol is an open-source library of smart contracts for building and governing effective DAOs. It’s a comprehensive and flexible infrastructure that allows building custom DAOs for any specific need, from straightforward to complex organizational structures.
+
+## 💖 Support This Project
+
+DeXe Protocol is free, open-source software maintained by the community. If you or your organization rely on these smart contracts, please consider supporting continued development:
+
+**[❤️ Become a GitHub Sponsor](https://github.com/sponsors/PandaKitten96)**
+
+Your sponsorship helps fund:
+- Ongoing security audits
+- New features and improvements
+- Bug fixes and maintenance
+- Community support
 
 ## Protocol Deployments
 

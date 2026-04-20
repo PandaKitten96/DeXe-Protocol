@@ -10,17 +10,43 @@ on:
       - dev
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "16.18.x"
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install packages
+        run: npm install
+
+      - name: Lint Solidity
+        run: npx solhint "contracts/**/*.sol"
+
+      - name: Lint formatting
+        run: npx prettier --check "contracts/**/*.sol" "./**/*.js" "./*.json" --ignore-path .gitignore
+
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
           cache: npm
 
       - name: Install packages
@@ -28,3 +54,24 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install packages
+        run: npm install
+
+      - name: Run coverage
+        run: npm run coverage
