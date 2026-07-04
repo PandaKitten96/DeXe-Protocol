@@ -97,6 +97,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         networkPropertiesAddress = registry.getNetworkPropertiesContract();
     }
 
+    /// @notice Deposits ERC20 tokens (or native ETH wrapped to WETH) into a receiver's personal voting balance
+    /// @param payer The address whose tokens are transferred in
+    /// @param receiver The address whose voting balance is credited
+    /// @param amount The amount of tokens to deposit, in 18-decimal representation
     function depositTokens(
         address payer,
         address receiver,
@@ -114,6 +118,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _usersInfo[receiver].balances[IGovPool.VoteType.PersonalVote].tokens += amount;
     }
 
+    /// @notice Withdraws tokens from a payer's personal voting balance and sends them to a receiver
+    /// @param payer The address whose voting balance is debited
+    /// @param receiver The address that receives the withdrawn tokens
+    /// @param amount The amount of tokens to withdraw, in 18-decimal representation
     function withdrawTokens(
         address payer,
         address receiver,
@@ -135,6 +143,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _sendNativeOrToken(receiver, amount);
     }
 
+    /// @notice Moves tokens from a delegator's personal balance to a delegatee's micropool balance
+    /// @param delegator The address delegating their tokens
+    /// @param delegatee The address receiving the delegated voting power
+    /// @param amount The amount of tokens to delegate, in 18-decimal representation
     function delegateTokens(
         address delegator,
         address delegatee,
@@ -159,6 +171,9 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         delegatorInfo.delegatees.add(delegatee);
     }
 
+    /// @notice Credits a delegatee's treasury vote balance with tokens sent from the GovPool treasury
+    /// @param delegatee The address receiving treasury-delegated voting power
+    /// @param amount The amount of tokens to delegate, in 18-decimal representation
     function delegateTokensTreasury(
         address delegatee,
         uint256 amount
@@ -168,6 +183,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _usersInfo[delegatee].balances[IGovPool.VoteType.TreasuryVote].tokens += amount;
     }
 
+    /// @notice Returns tokens from a delegatee's micropool balance back to the delegator's personal balance
+    /// @param delegator The address that originally delegated
+    /// @param delegatee The address whose micropool balance is reduced
+    /// @param amount The amount of tokens to undelegate, in 18-decimal representation
     function undelegateTokens(
         address delegator,
         address delegatee,
@@ -189,6 +208,9 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _cleanDelegatee(delegatorInfo, delegatee);
     }
 
+    /// @notice Returns treasury-delegated tokens from a delegatee's treasury balance back to the GovPool
+    /// @param delegatee The address whose treasury vote balance is reduced
+    /// @param amount The amount of tokens to undelegate, in 18-decimal representation
     function undelegateTokensTreasury(
         address delegatee,
         uint256 amount
@@ -206,6 +228,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _sendNativeOrToken(msg.sender, amount);
     }
 
+    /// @notice Deposits NFTs from a payer into a receiver's personal voting balance
+    /// @param payer The address transferring the NFTs
+    /// @param receiver The address whose NFT voting balance is credited
+    /// @param nftIds The list of NFT token IDs to deposit
     function depositNfts(
         address payer,
         address receiver,
@@ -226,6 +252,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Withdraws NFTs from a payer's personal voting balance and transfers them to a receiver
+    /// @param payer The address whose NFT voting balance is debited
+    /// @param receiver The address receiving the NFTs
+    /// @param nftIds The list of NFT token IDs to withdraw
     function withdrawNfts(
         address payer,
         address receiver,
@@ -251,6 +281,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Delegates NFTs from a delegator's personal balance to a delegatee's micropool balance
+    /// @param delegator The address delegating their NFTs
+    /// @param delegatee The address receiving the delegated NFT voting power
+    /// @param nftIds The list of NFT token IDs to delegate
     function delegateNfts(
         address delegator,
         address delegatee,
@@ -304,6 +338,9 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Credits a delegatee's treasury NFT balance with NFTs sent from the GovPool treasury
+    /// @param delegatee The address receiving treasury-delegated NFT voting power
+    /// @param nftIds The list of NFT token IDs to treasury-delegate
     function delegateNftsTreasury(
         address delegatee,
         uint256[] calldata nftIds
@@ -333,6 +370,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Returns NFTs from a delegatee's micropool balance back to the delegator's personal balance
+    /// @param delegator The address that originally delegated
+    /// @param delegatee The address whose micropool NFT balance is reduced
+    /// @param nftIds The list of NFT token IDs to undelegate
     function undelegateNfts(
         address delegator,
         address delegatee,
@@ -382,6 +423,9 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _cleanDelegatee(delegatorInfo, delegatee);
     }
 
+    /// @notice Returns treasury NFTs from a delegatee's treasury balance back to the GovPool
+    /// @param delegatee The address whose treasury NFT vote balance is reduced
+    /// @param nftIds The list of NFT token IDs to undelegate
     function undelegateNftsTreasury(
         address delegatee,
         uint256[] calldata nftIds
@@ -413,11 +457,17 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Stakes tokens into a staking proposal tier on behalf of the caller
+    /// @param tierId The staking tier to stake into
+    /// @param amount The amount of tokens to stake, in 18-decimal representation
     function stakeTokens(uint256 tierId, uint256 amount) external ifNotStaken(msg.sender, amount) {
         require(stakingProposalAddress != address(0), "GovUK: Staking disabled");
         IStakingProposal(stakingProposalAddress).stake(msg.sender, amount, tierId);
     }
 
+    /// @notice Recalculates and stores the maximum token amount locked across the given proposals for a voter
+    /// @param lockedProposals The proposal IDs to scan for locked token amounts
+    /// @param voter The address of the voter whose lock state to update
     function updateMaxTokenLockedAmount(
         uint256[] calldata lockedProposals,
         address voter
@@ -438,6 +488,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         voterInfo.maxTokensLocked = newLockedAmount;
     }
 
+    /// @notice Records the token amount locked by a voter in a specific proposal
+    /// @param proposalId The proposal ID being voted on
+    /// @param voter The address of the voter
+    /// @param amount The amount of tokens being locked
     function lockTokens(
         uint256 proposalId,
         address voter,
@@ -451,10 +505,17 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         );
     }
 
+    /// @notice Removes the token lock for a voter on a given proposal
+    /// @param proposalId The proposal ID whose lock is being released
+    /// @param voter The address of the voter
     function unlockTokens(uint256 proposalId, address voter) external override onlyOwner {
         delete _usersInfo[voter].lockedInProposals[proposalId];
     }
 
+    /// @notice Records NFTs as locked during an active proposal vote
+    /// @param voter The address of the voter whose NFTs are being locked
+    /// @param voteType The vote type (personal or delegated) determining which balance to verify ownership against
+    /// @param nftIds The list of NFT token IDs to lock
     function lockNfts(
         address voter,
         IGovPool.VoteType voteType,
@@ -480,6 +541,8 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Decrements the lock counter for the given NFTs, allowing them to be withdrawn when the count reaches zero
+    /// @param nftIds The list of NFT token IDs to unlock
     function unlockNfts(uint256[] calldata nftIds) external override onlyOwner {
         for (uint256 i; i < nftIds.length; i++) {
             uint256 nftId = nftIds[i];
@@ -490,6 +553,8 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Triggers on-chain power recalculation for the given NFTs if the NFT supports dynamic power
+    /// @param nftIds The list of NFT token IDs whose powers should be refreshed
     function updateNftPowers(uint256[] calldata nftIds) external override onlyOwner {
         if (!_nftInfo.isSupportPower) {
             return;
@@ -498,10 +563,16 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         IERC721Power(_nftInfo.nftAddress).recalculateNftPowers(nftIds);
     }
 
+    /// @notice Sets the ERC20 governance token address used for token-based voting power
+    /// @param _tokenAddress The address of the ERC20 governance token
     function setERC20Address(address _tokenAddress) external override onlyOwner {
         _setERC20Address(_tokenAddress);
     }
 
+    /// @notice Sets the ERC721 governance NFT address used for NFT-based voting power
+    /// @param _nftAddress The address of the ERC721 governance NFT contract
+    /// @param individualPower The fixed voting power per NFT when the collection does not support dynamic power
+    /// @param nftsTotalSupply The total NFT supply cap; 0 means supply is taken directly from the token contract
     function setERC721Address(
         address _nftAddress,
         uint256 individualPower,
@@ -510,6 +581,7 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         _setERC721Address(_nftAddress, individualPower, nftsTotalSupply);
     }
 
+    /// @notice Deploys a new StakingProposal proxy and links it to this GovPool; can only be called once
     function deployStakingProposal() external {
         require(stakingProposalAddress == address(0), "GovUK: Already deployed");
         AbstractPoolContractsRegistry poolRegistry = AbstractPoolContractsRegistry(
@@ -523,10 +595,16 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
 
     receive() external payable {}
 
+    /// @notice Returns the address of the configured ERC721 governance NFT contract
+    /// @return The ERC721 NFT contract address, or address(0) if not set
     function nftAddress() external view override returns (address) {
         return _nftInfo.nftAddress;
     }
 
+    /// @notice Returns metadata about the configured NFT collection
+    /// @return isSupportPower True if the NFT supports dynamic per-token power
+    /// @return individualPower The fixed voting power per NFT when dynamic power is not supported
+    /// @return totalSupply The configured total supply cap; 0 means supply is read from the NFT contract
     function getNftInfo()
         external
         view
@@ -536,10 +614,18 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return (_nftInfo.isSupportPower, _nftInfo.individualPower, _nftInfo.totalSupply);
     }
 
+    /// @notice Returns the highest token amount locked simultaneously across all proposals for a voter
+    /// @param voter The address of the voter
+    /// @return The maximum locked token amount in 18-decimal representation
     function maxLockedAmount(address voter) external view override returns (uint256) {
         return _usersInfo[voter].maxTokensLocked;
     }
 
+    /// @notice Returns the token voting balance available to a voter under the given vote type
+    /// @param voter The address of the voter
+    /// @param voteType The vote type (personal, micropool, treasury, or delegated)
+    /// @return totalBalance The total deposited + owned token balance in 18-decimal representation
+    /// @return ownedBalance The wallet-owned token balance in 18-decimal representation (non-zero only for personal/delegated)
     function tokenBalance(
         address voter,
         IGovPool.VoteType voteType
@@ -570,6 +656,11 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         totalBalance += ownedBalance;
     }
 
+    /// @notice Returns the NFT voting balance (by count) available to a voter under the given vote type
+    /// @param voter The address of the voter
+    /// @param voteType The vote type (personal, micropool, treasury, or delegated)
+    /// @return totalBalance The total deposited + owned NFT count
+    /// @return ownedBalance The number of NFTs owned in the voter's wallet (non-zero only for personal/delegated)
     function nftBalance(
         address voter,
         IGovPool.VoteType voteType
@@ -597,6 +688,11 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         totalBalance += ownedBalance;
     }
 
+    /// @notice Returns the full list of NFT IDs available to a voter and the number of wallet-owned NFTs
+    /// @param voter The address of the voter
+    /// @param voteType The vote type determining which balance set to enumerate
+    /// @return nfts Array of NFT token IDs (deposited, delegated, and/or owned depending on vote type)
+    /// @return ownedLength The number of NFTs owned directly in the voter's wallet
     function nftExactBalance(
         address voter,
         IGovPool.VoteType voteType
@@ -639,6 +735,13 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return (nftsVector.toArray(), ownedLength);
     }
 
+    /// @notice Returns the total NFT voting power and optionally a per-NFT breakdown for the given IDs
+    /// @param nftIds The NFT token IDs to aggregate power for
+    /// @param voteType The vote type used to look up delegated NFT power when nftIds is empty
+    /// @param voter The voter address (used for micropool/treasury power look-ups)
+    /// @param perNftPowerArray When true, populates the per-NFT power array in the return value
+    /// @return nftPower The total aggregated NFT voting power
+    /// @return perNftPower Array of per-token powers; empty unless perNftPowerArray is true
     function getTotalNftsPower(
         uint256[] memory nftIds,
         IGovPool.VoteType voteType,
@@ -648,6 +751,8 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return _usersInfo.getTotalNftsPower(_nftInfo, nftIds, voteType, voter, perNftPowerArray);
     }
 
+    /// @notice Returns the combined total voting power across all token and NFT holdings in the DAO
+    /// @return power The sum of ERC20 total supply and NFT total power (in 18-decimal representation)
     function getTotalPower() external view override returns (uint256 power) {
         address token = tokenAddress;
 
@@ -676,6 +781,11 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         }
     }
 
+    /// @notice Checks whether a voter has enough combined voting power to create a proposal
+    /// @param voter The address of the prospective proposer
+    /// @param voteType The vote type to check the voter's primary balance against
+    /// @param requiredVotes The minimum voting power needed to create a proposal
+    /// @return True if the voter meets the creation threshold, false otherwise
     function canCreate(
         address voter,
         IGovPool.VoteType voteType,
@@ -717,6 +827,11 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return tokens + personalNftPower + micropoolNftPower + treasuryNftPower >= requiredVotes;
     }
 
+    /// @notice Returns the voting power snapshot for a list of users under given vote types
+    /// @param users The addresses to query
+    /// @param voteTypes The corresponding vote type for each user
+    /// @param perNftPowerArray When true, includes a per-NFT power breakdown in each result
+    /// @return votingPowers Array of voting power views, one per user/voteType pair
     function votingPower(
         address[] calldata users,
         IGovPool.VoteType[] calldata voteTypes,
@@ -725,6 +840,12 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return _usersInfo.votingPower(_nftInfo, tokenAddress, users, voteTypes, perNftPowerArray);
     }
 
+    /// @notice Returns a voter's personal and full voting power after applying the configured voting-power formula
+    /// @param voter The address of the voter
+    /// @param amount The raw token amount the voter wants to vote with
+    /// @param nftIds The NFT token IDs the voter wants to vote with
+    /// @return personalPower The power attributed solely to this voter's own holdings
+    /// @return fullPower The power after applying any power-multiplier curves
     function transformedVotingPower(
         address voter,
         uint256 amount,
@@ -733,6 +854,11 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return _usersInfo.transformedVotingPower(_nftInfo, tokenAddress, voter, amount, nftIds);
     }
 
+    /// @notice Returns the total delegated power and per-delegatee breakdown for a user
+    /// @param user The address of the delegator
+    /// @param perNftPowerArray When true, includes per-NFT power in each delegation entry
+    /// @return power The total voting power delegated by the user
+    /// @return delegationsInfo Array of per-delegatee delegation details
     function delegations(
         address user,
         bool perNftPowerArray
@@ -740,6 +866,12 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
         return _usersInfo.delegations(_nftInfo, user, perNftPowerArray);
     }
 
+    /// @notice Returns the token and NFT amounts a voter can currently withdraw given their active proposal locks
+    /// @param voter The address of the voter
+    /// @param lockedProposals The proposal IDs the voter participated in (used to compute locked amounts)
+    /// @param unlockedNfts NFT IDs that have already had their lock counters decremented and are withdrawable
+    /// @return withdrawableTokens The token amount that can be withdrawn now
+    /// @return withdrawableNfts The NFT token IDs that can be withdrawn now
     function getWithdrawableAssets(
         address voter,
         uint256[] calldata lockedProposals,
@@ -754,6 +886,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
             lockedProposals.getWithdrawableAssets(unlockedNfts, _usersInfo[voter], _nftLockedNums);
     }
 
+    /// @notice Returns the total voting power that a delegator has granted to a specific delegatee
+    /// @param delegator The address of the delegator
+    /// @param delegatee The address of the delegatee
+    /// @return delegatedPower The combined token + NFT voting power delegated from delegator to delegatee
     function getDelegatedAssetsPower(
         address delegator,
         address delegatee
@@ -770,6 +906,10 @@ contract GovUserKeeper is IGovUserKeeper, OwnableUpgradeable, ERC721HolderUpgrad
             );
     }
 
+    /// @notice Converts a deposit amount to native token decimals, deducting any accompanying native ETH value
+    /// @param value The native ETH (msg.value) sent alongside the transaction
+    /// @param amount The 18-decimal token amount specified by the caller
+    /// @return nativeAmount The amount in native token decimals after subtracting the ETH portion
     function getAmountWithNativeDecimals(
         uint256 value,
         uint256 amount
