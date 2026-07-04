@@ -43,6 +43,18 @@ contract GovPool is
     Multicall,
     BlockGuard
 {
+    error EmptyDeposit();
+    error EmptyWithdrawal();
+    error EmptyDelegation();
+    error EmptyUndelegation();
+    error DelegatorEqualsDelgatee();
+    error DelegateeNotExpert();
+    error UsePersonalVoteType();
+    error ZeroVotePowerContract();
+    error NotThisContract();
+    error NotValidatorsContract();
+    error NotBABTHolder();
+
     using MathHelper for uint256;
     using Math for uint256;
     using SafeERC20 for IERC20;
@@ -170,7 +182,7 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external payable override onlyBABTHolder {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty deposit");
+        if (amount == 0 && nftIds.length == 0) revert EmptyDeposit();
 
         _lockBlock(DEPOSIT_WITHDRAW, msg.sender);
 
@@ -237,7 +249,7 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external override onlyBABTHolder {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty withdrawal");
+        if (amount == 0 && nftIds.length == 0) revert EmptyWithdrawal();
 
         _checkBlock(DEPOSIT_WITHDRAW, msg.sender);
 
@@ -254,8 +266,8 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external override onlyBABTHolder {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty delegation");
-        require(msg.sender != delegatee, "Gov: delegator's equal delegatee");
+        if (amount == 0 && nftIds.length == 0) revert EmptyDelegation();
+        if (msg.sender == delegatee) revert DelegatorEqualsDelgatee();
 
         _lockBlock(DELEGATE_UNDELEGATE, msg.sender);
 
@@ -279,8 +291,8 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external payable override onlyThis {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty delegation");
-        require(getExpertStatus(delegatee), "Gov: delegatee is not an expert");
+        if (amount == 0 && nftIds.length == 0) revert EmptyDelegation();
+        if (!getExpertStatus(delegatee)) revert DelegateeNotExpert();
 
         _lockBlock(DELEGATE_UNDELEGATE_TREASURY, delegatee);
 
@@ -322,7 +334,7 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external override onlyBABTHolder {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty undelegation");
+        if (amount == 0 && nftIds.length == 0) revert EmptyUndelegation();
 
         _checkBlock(DELEGATE_UNDELEGATE, msg.sender);
 
@@ -345,7 +357,7 @@ contract GovPool is
         uint256 amount,
         uint256[] calldata nftIds
     ) external override onlyThis {
-        require(amount > 0 || nftIds.length > 0, "Gov: empty undelegation");
+        if (amount == 0 && nftIds.length == 0) revert EmptyUndelegation();
 
         _checkBlock(DELEGATE_UNDELEGATE_TREASURY, delegatee);
 
@@ -500,7 +512,7 @@ contract GovPool is
         address voter,
         VoteType voteType
     ) external view override returns (uint256, uint256, uint256, bool) {
-        require(voteType != VoteType.DelegatedVote, "Gov: use personal");
+        if (voteType == VoteType.DelegatedVote) revert UsePersonalVoteType();
 
         ProposalCore storage core = _proposals[proposalId].core;
         VoteInfo storage info = _userInfos[voter].voteInfos[proposalId];
@@ -620,25 +632,24 @@ contract GovPool is
     }
 
     function _changeVotePower(address votePower) internal {
-        require(votePower != address(0), "Gov: zero vote power contract");
+        if (votePower == address(0)) revert ZeroVotePowerContract();
 
         _votePowerContract = votePower;
     }
 
     function _onlyThis() internal view {
-        require(address(this) == msg.sender, "Gov: not this contract");
+        if (address(this) != msg.sender) revert NotThisContract();
     }
 
     function _onlyValidatorContract() internal view {
-        require(address(_govValidators) == msg.sender, "Gov: not the validators contract");
+        if (address(_govValidators) != msg.sender) revert NotValidatorsContract();
     }
 
     function _onlyBABTHolder() internal view {
-        require(
-            !onlyBABTHolders ||
-                _babt.balanceOf(msg.sender) > 0 ||
-                IPoolRegistry(_poolRegistry).isGovPool(msg.sender),
-            "Gov: not BABT holder"
-        );
+        if (
+            onlyBABTHolders &&
+            _babt.balanceOf(msg.sender) == 0 &&
+            !IPoolRegistry(_poolRegistry).isGovPool(msg.sender)
+        ) revert NotBABTHolder();
     }
 }

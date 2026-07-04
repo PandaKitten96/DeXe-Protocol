@@ -15,6 +15,8 @@ import "./GovPoolCommission.sol";
 import "../../../gov/GovPool.sol";
 
 library GovPoolExecute {
+    error InvalidProposalStatus();
+
     using DataHelper for bytes;
     using MathHelper for uint256;
     using Math for uint256;
@@ -34,11 +36,10 @@ library GovPoolExecute {
 
         IGovPool.ProposalState proposalState = govPool.getProposalState(proposalId);
 
-        require(
-            proposalState == IGovPool.ProposalState.SucceededFor ||
-                proposalState == IGovPool.ProposalState.SucceededAgainst,
-            "Gov: invalid status"
-        );
+        if (
+            proposalState != IGovPool.ProposalState.SucceededFor &&
+                proposalState != IGovPool.ProposalState.SucceededAgainst
+        ) revert InvalidProposalStatus();
 
         core.executed = true;
 

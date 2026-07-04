@@ -11,6 +11,15 @@ import "../../interfaces/gov/proposals/IStakingProposal.sol";
 import "../../core/Globals.sol";
 
 contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistributor {
+    error NotGovContract();
+    error NotKeeperContract();
+    error GovIsZero();
+    error InvalidSettings();
+    error MaxTiersReached();
+    error NotActiveTier();
+    error InvalidId();
+    error StillActive();
+
     using EnumerableSet for *;
     using SafeERC20 for IERC20;
 
@@ -44,17 +53,17 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
     event RewardClaimed(uint256 id, address user, address rewardToken, uint256 rewardsAmount);
 
     modifier onlyGov() {
-        require(msg.sender == govPoolAddress, "SP: not a Gov contract");
+        if (msg.sender != govPoolAddress) revert NotGovContract();
         _;
     }
 
     modifier onlyKeeper() {
-        require(msg.sender == userKeeperAddress, "SP: not a Keeper contract");
+        if (msg.sender != userKeeperAddress) revert NotKeeperContract();
         _;
     }
 
     function __StakingProposal_init(address _govPoolAddress) external initializer {
-        require(_govPoolAddress != address(0), "SP: Gov is zero");
+        if (_govPoolAddress == address(0)) revert GovIsZero();
 
         govPoolAddress = _govPoolAddress;
         userKeeperAddress = msg.sender;
@@ -67,14 +76,10 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
         uint256 deadline,
         string calldata metadata
     ) external onlyGov {
-        require(
-            startedAt < deadline && rewardToken != address(0) && rewardAmount > 0,
-            "SP: Invalid settings"
-        );
-        require(
-            _recalculateActiveTiers(_activeTiers).length() < MAX_TIERS_AMOUNT,
-            "SP: Max tiers reached"
-        );
+        if (startedAt >= deadline || rewardToken == address(0) || rewardAmount == 0)
+            revert InvalidSettings();
+        if (_recalculateActiveTiers(_activeTiers).length() >= MAX_TIERS_AMOUNT)
+            revert MaxTiersReached();
 
         if (deadline < block.timestamp) {
             IERC20(rewardToken).safeTransferFrom(govPoolAddress, address(this), rewardAmount);
@@ -102,7 +107,7 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
     }
 
     function stake(address user, uint256 amount, uint256 id) external onlyKeeper {
-        require(isActiveTier(id), "SP: Not Active");
+        if (!isActiveTier(id)) revert NotActiveTier();
 
         _userClaimableTiers[user].add(id);
 
@@ -139,26 +144,28 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
             : _userClaimableTiers[user].values();
 
         uint256 length = userActiveTiers.length;
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length; ) {
             uint256 id = userActiveTiers[i];
             if (isActiveTier(id)) {
                 totalStakes += _userDistributions[id][user].shares;
             }
+            unchecked { ++i; }
         }
     }
 
     function isActiveTier(uint256 id) public view returns (bool) {
-        uint256 startedAt = stakingInfos[id].startedAt;
-        uint256 deadline = stakingInfos[id].deadline;
+        StakingInfo storage info = stakingInfos[id];
+        uint256 deadline = info.deadline;
         if (deadline == 0) return false;
-        return deadline >= block.timestamp && block.timestamp >= startedAt;
+        return deadline >= block.timestamp && block.timestamp >= info.startedAt;
     }
 
     function getOwedValue(uint256 id, address user_) public view returns (uint256) {
         UserDistribution storage userDist = _userDistributions[id][user_];
 
-        uint256 startedAt = stakingInfos[id].startedAt;
-        uint256 deadline = stakingInfos[id].deadline;
+        StakingInfo storage info = stakingInfos[id];
+        uint256 startedAt = info.startedAt;
+        uint256 deadline = info.deadline;
 
         if (deadline == 0 || block.timestamp < startedAt) return 0;
 
@@ -178,7 +185,7 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
         uint256 length = claimableTiers.length();
         tiersUserInfo = new TierUserInfo[](length);
 
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length; ) {
             uint256 id = claimableTiers.at(i);
 
             StakingInfo storage info = stakingInfos[id];
@@ -191,6 +198,7 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
             tiersUserInfo[i].currentStake = _userDistributions[id][user].shares;
             tiersUserInfo[i].currentRewards = getOwedValue(id, user);
             tiersUserInfo[i].tierCurrentStakes = _totalShares[id];
+            unchecked { ++i; }
         }
     }
 
@@ -198,7 +206,7 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
         uint256[] memory ids
     ) public view returns (StakingInfoView[] memory stakingInfo) {
         stakingInfo = new StakingInfoView[](ids.length);
-        for (uint i = 0; i < ids.length; i++) {
+        for (uint i = 0; i < ids.length; ) {
             StakingInfoView memory info = stakingInfo[i];
 
             uint256 id = ids[i];
@@ -213,6 +221,7 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
             info.isActive = info.startedAt <= block.timestamp && block.timestamp <= info.deadline;
             info.totalStaked = _totalShares[id];
             info.owedToProtocol = _owedToProtocol[id];
+            unchecked { ++i; }
         }
     }
 
@@ -257,8 +266,8 @@ contract StakingProposal is IStakingProposal, Initializable, AbstractValueDistri
     function _couldClaim(uint256 id) internal view {
         StakingInfo storage info = stakingInfos[id];
         uint256 deadline = info.deadline;
-        require(deadline != 0, "SP: invalid id");
-        require(deadline < block.timestamp, "SP: Still active");
+        if (deadline == 0) revert InvalidId();
+        if (deadline >= block.timestamp) revert StillActive();
     }
 
     function _claim(uint256 id) internal {

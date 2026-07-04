@@ -13,6 +13,11 @@ import "../../utils/TokenBalance.sol";
 import "../../math/MathHelper.sol";
 
 library GovPoolRewards {
+    error ProposalNotExecuted();
+    error RewardsAreOff();
+    error ZeroRewards();
+    error NoMicropoolRewards();
+
     using EnumerableSet for EnumerableSet.AddressSet;
     using TokenBalance for address;
     using MathHelper for uint256;
@@ -102,7 +107,7 @@ library GovPoolRewards {
         if (proposalId != 0) {
             IGovPool.ProposalCore storage core = proposals[proposalId].core;
 
-            require(core.executed, "Gov: proposal is not executed");
+            if (!core.executed) revert ProposalNotExecuted();
 
             uint256 staticRewardsToPay = userRewards.staticRewards[proposalId];
             uint256 staticRewardsPaid;
@@ -119,7 +124,7 @@ library GovPoolRewards {
 
             uint256 rewardsPaid = _sendRewards(
                 user,
-                core.settings.rewardsInfo.rewardToken,
+                rewardToken,
                 staticRewardsToPay +
                     votingRewardsToPay.personal +
                     votingRewardsToPay.micropool +
@@ -216,8 +221,8 @@ library GovPoolRewards {
         address rewardToken,
         uint256 rewards
     ) internal returns (uint256) {
-        require(rewardToken != address(0), "Gov: rewards are off");
-        require(rewards != 0, "Gov: zero rewards");
+        if (rewardToken == address(0)) revert RewardsAreOff();
+        if (rewards == 0) revert ZeroRewards();
 
         return rewardToken.sendFunds(receiver, rewards, TokenBalance.TransferType.TryMint);
     }

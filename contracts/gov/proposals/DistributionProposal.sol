@@ -19,6 +19,16 @@ import "../../libs/utils/TokenBalance.sol";
 import "../../core/Globals.sol";
 
 contract DistributionProposal is IDistributionProposal, IProposalValidator, Initializable {
+    error NotGovContract();
+    error GovAddressIsZero();
+    error ProposalAlreadyExists();
+    error ZeroAddress();
+    error ZeroAmount();
+    error WrongNativeAmount();
+    error FailedToSendBackEth();
+    error ZeroArrayLength();
+    error AlreadyClaimed();
+
     using SafeERC20 for IERC20Metadata;
     using MathHelper for uint256;
     using DecimalsConverter for *;
@@ -36,12 +46,12 @@ contract DistributionProposal is IDistributionProposal, IProposalValidator, Init
     );
 
     modifier onlyGov() {
-        require(msg.sender == govAddress, "DP: not a Gov contract");
+        if (msg.sender != govAddress) revert NotGovContract();
         _;
     }
 
     function __DistributionProposal_init(address _govAddress) external initializer {
-        require(_govAddress != address(0), "DP: _govAddress is zero");
+        if (_govAddress == address(0)) revert GovAddressIsZero();
 
         govAddress = _govAddress;
     }
@@ -53,19 +63,19 @@ contract DistributionProposal is IDistributionProposal, IProposalValidator, Init
     ) external payable override onlyGov {
         IDistributionProposal.DPInfo storage proposal = proposals[proposalId];
 
-        require(proposal.rewardAddress == address(0), "DP: proposal already exists");
-        require(token != address(0), "DP: zero address");
-        require(amount > 0, "DP: zero amount");
+        if (proposal.rewardAddress != address(0)) revert ProposalAlreadyExists();
+        if (token == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
 
         uint256 actualAmount = _getActualRewardAmount(proposalId, amount);
 
         if (token == ETHEREUM_ADDRESS) {
-            require(amount == msg.value, "DP: wrong native amount");
+            if (amount != msg.value) revert WrongNativeAmount();
 
             (bool ok, ) = payable(msg.sender).call{value: amount - actualAmount}("");
-            require(ok, "DP: failed to send back eth");
+            if (!ok) revert FailedToSendBackEth();
         } else {
-            require(msg.value == 0, "DP: wrong native amount");
+            if (msg.value != 0) revert WrongNativeAmount();
 
             IERC20Metadata(token).safeTransferFrom(
                 msg.sender,
@@ -79,15 +89,15 @@ contract DistributionProposal is IDistributionProposal, IProposalValidator, Init
     }
 
     function claim(address voter, uint256[] calldata proposalIds) external override {
-        require(proposalIds.length > 0, "DP: zero array length");
-        require(voter != address(0), "DP: zero address");
+        if (proposalIds.length == 0) revert ZeroArrayLength();
+        if (voter == address(0)) revert ZeroAddress();
 
         for (uint256 i; i < proposalIds.length; i++) {
             DPInfo storage dpInfo = proposals[proposalIds[i]];
             address rewardToken = dpInfo.rewardAddress;
 
-            require(rewardToken != address(0), "DP: zero address");
-            require(!dpInfo.claimed[voter], "DP: already claimed");
+            if (rewardToken == address(0)) revert ZeroAddress();
+            if (dpInfo.claimed[voter]) revert AlreadyClaimed();
 
             uint256 reward = getPotentialReward(proposalIds[i], voter);
 

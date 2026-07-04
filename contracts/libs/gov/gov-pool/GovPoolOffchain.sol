@@ -10,6 +10,9 @@ import "./GovPoolCommission.sol";
 import "../../../gov/GovPool.sol";
 
 library GovPoolOffchain {
+    error AlreadyUsedHash();
+    error InvalidSigner();
+
     using ECDSA for bytes32;
     using GovPoolCommission for address;
 
@@ -22,11 +25,9 @@ library GovPoolOffchain {
     ) external {
         bytes32 signHash_ = getSignHash(resultsHash, msg.sender);
 
-        require(!offChain.usedHashes[signHash_], "Gov: already used");
-        require(
-            signHash_.toEthSignedMessageHash().recover(signature) == offChain.verifier,
-            "Gov: invalid signer"
-        );
+        if (offChain.usedHashes[signHash_]) revert AlreadyUsedHash();
+        if (signHash_.toEthSignedMessageHash().recover(signature) != offChain.verifier)
+            revert InvalidSigner();
 
         offChain.resultsHash = resultsHash;
         offChain.usedHashes[signHash_] = true;

@@ -16,6 +16,15 @@ import "../../math/MathHelper.sol";
 import "../../utils/TypeHelper.sol";
 
 library GovPoolVote {
+    error CancelUnavailable();
+    error NftAlreadyVoted();
+    error VoteUnavailable();
+    error NeedCancel();
+    error WrongVoteAmount();
+    error LowVotingPower();
+    error VoteLimitReached();
+    error NotActiveVote();
+
     using EnumerableSet for EnumerableSet.UintSet;
     using Math for uint256;
     using MathHelper for uint256;
@@ -81,10 +90,7 @@ library GovPoolVote {
 
         _updateGlobalState(core, userInfos, proposalId, msg.sender, isVoteFor);
 
-        require(
-            voteInfo.totalRawVoted >= core.settings.minVotesForVoting,
-            "Gov: low voting power"
-        );
+        if (voteInfo.totalRawVoted < core.settings.minVotesForVoting) revert LowVotingPower();
     }
 
     function revoteDelegated(
@@ -124,7 +130,7 @@ library GovPoolVote {
         mapping(address => IGovPool.UserInfo) storage userInfos,
         uint256 proposalId
     ) external {
-        require(_isVotingState(proposalId), "Gov: cancel unavailable");
+        if (!_isVotingState(proposalId)) revert CancelUnavailable();
 
         IGovPool.ProposalCore storage core = proposals[proposalId].core;
         IGovPool.UserInfo storage userInfo = userInfos[msg.sender];
@@ -187,7 +193,7 @@ library GovPoolVote {
         EnumerableSet.UintSet storage nftsVoted = rawVote.nftsVoted;
 
         for (uint256 i; i < nftIds.length; i++) {
-            require(nftsVoted.add(nftIds[i]), "Gov: NFT already voted");
+            if (!nftsVoted.add(nftIds[i])) revert NftAlreadyVoted();
         }
 
         (, address userKeeperAddress, , , ) = IGovPool(address(this)).getHelperContracts();
@@ -274,10 +280,8 @@ library GovPoolVote {
     ) internal {
         activeVotes.add(proposalId);
 
-        require(
-            activeVotes.length() <= IGovPool(address(this)).coreProperties().getGovVotesLimit(),
-            "Gov: vote limit reached"
-        );
+        if (activeVotes.length() > IGovPool(address(this)).coreProperties().getGovVotesLimit())
+            revert VoteLimitReached();
 
         mapping(IGovPool.VoteType => IGovPool.RawVote) storage rawVotes = voteInfo.rawVotes;
 
@@ -311,7 +315,7 @@ library GovPoolVote {
         uint256 proposalId,
         bool isVoteFor
     ) internal {
-        require(activeVotes.remove(proposalId), "Gov: not active");
+        if (!activeVotes.remove(proposalId)) revert NotActiveVote();
 
         if (isVoteFor) {
             core.rawVotesFor -= voteInfo.totalRawVoted;
@@ -342,9 +346,9 @@ library GovPoolVote {
 
         IGovPool.UserInfo storage userInfo = userInfos[msg.sender];
 
-        require(_isVotingState(proposalId), "Gov: vote unavailable");
-        require(!_isVoted(userInfo.voteInfos[proposalId]), "Gov: need cancel");
-        require(amount <= tokenBalance - ownedBalance, "Gov: wrong vote amount");
+        if (!_isVotingState(proposalId)) revert VoteUnavailable();
+        if (_isVoted(userInfo.voteInfos[proposalId])) revert NeedCancel();
+        if (amount > tokenBalance - ownedBalance) revert WrongVoteAmount();
     }
 
     function _isVoted(IGovPool.VoteInfo storage voteInfo) internal view returns (bool) {

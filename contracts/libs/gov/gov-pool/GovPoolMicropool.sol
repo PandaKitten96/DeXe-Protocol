@@ -14,6 +14,8 @@ import "../../../interfaces/gov/IGovPool.sol";
 import "../../../interfaces/gov/user-keeper/IGovUserKeeper.sol";
 
 library GovPoolMicropool {
+    error NoMicropoolRewards();
+
     using TokenBalance for address;
     using Math for uint256;
     using MathHelper for uint256;
@@ -69,7 +71,7 @@ library GovPoolMicropool {
             delegatee
         );
 
-        require(reward != 0, "Gov: no micropool rewards");
+        if (reward == 0) revert NoMicropoolRewards();
 
         IGovPool.DelegatorInfo storage delegatorInfo = userInfos[delegatee].delegatorInfos[
             delegator

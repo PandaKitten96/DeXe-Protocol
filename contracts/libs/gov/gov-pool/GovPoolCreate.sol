@@ -23,6 +23,25 @@ import "../../../libs/utils/TypeHelper.sol";
 import "../../../libs/math/MathHelper.sol";
 
 library GovPoolCreate {
+    error InvalidArrayLength();
+    error ValidationFailed();
+    error CannotBeMoved();
+    error LowCreatingPower();
+    error InvalidInternalData();
+    error InvalidActionsLength();
+    error InvalidExecutor();
+    error InvalidSelector();
+    error InvalidAmount();
+    error InvalidApprove();
+    error InvalidValue();
+    error InvalidNftsLength();
+    error InvalidNftVote();
+    error InvalidNftDeposit();
+    error InvalidVote();
+    error InvalidVoteAmount();
+    error InvalidProposalId();
+    error InvalidExecutorsLength();
+
     using EnumerableSet for EnumerableSet.UintSet;
     using DataHelper for bytes;
     using TypeCaster for *;
@@ -113,11 +132,10 @@ library GovPoolCreate {
         IGovPool.ProposalCore storage core = proposals[proposalId].core;
         (, , address govValidators, , ) = IGovPool(address(this)).getHelperContracts();
 
-        require(
-            IGovPool(address(this)).getProposalState(proposalId) ==
-                IGovPool.ProposalState.WaitingForVotingTransfer,
-            "Gov: can't be moved"
-        );
+        if (
+            IGovPool(address(this)).getProposalState(proposalId) !=
+                IGovPool.ProposalState.WaitingForVotingTransfer
+        ) revert CannotBeMoved();
 
         IGovValidators(govValidators).createExternalProposal(
             proposalId,
@@ -135,7 +153,7 @@ library GovPoolCreate {
         IGovPool.ProposalAction[] calldata actionsFor,
         IGovPool.ProposalAction[] calldata actionsAgainst
     ) internal view returns (IGovSettings.ProposalSettings memory settings, uint256 settingsId) {
-        require(actionsFor.length != 0, "Gov: invalid array length");
+        if (actionsFor.length == 0) revert InvalidArrayLength();
 
         address mainExecutor = actionsFor[actionsFor.length - 1].executor;
 
@@ -211,7 +229,7 @@ library GovPoolCreate {
             abi.encodeWithSelector(IProposalValidator.validate.selector, actionsFor)
         );
 
-        require(!ok || data.length == 0 || abi.decode(data, (bool)), "Gov: validation failed");
+        if (ok && data.length != 0 && !abi.decode(data, (bool))) revert ValidationFailed();
     }
 
     function _canCreate(IGovSettings.ProposalSettings memory settings) internal view {
@@ -225,16 +243,15 @@ library GovPoolCreate {
 
         (, address userKeeper, , , ) = govPool.getHelperContracts();
 
-        require(
-            IGovUserKeeper(userKeeper).canCreate(
+        if (
+            !IGovUserKeeper(userKeeper).canCreate(
                 msg.sender,
                 settings.delegatedVotingAllowed
                     ? IGovPool.VoteType.DelegatedVote
                     : IGovPool.VoteType.PersonalVote,
                 settings.minVotesForCreating
-            ),
-            "Gov: low creating power"
-        );
+            )
+        ) revert LowCreatingPower();
     }
 
     function _handleDataForInternalProposal(
@@ -246,29 +263,27 @@ library GovPoolCreate {
             uint256 executorSettings = govSettings.executorToSettings(actions[i].executor);
 
             if (actions[i].value != 0) {
-                require(
-                    executorSettings == uint256(IGovSettings.ExecutorType.INTERNAL) &&
-                        selector == IGovPool.delegateTreasury.selector,
-                    "Gov: invalid internal data"
-                );
+                if (
+                    executorSettings != uint256(IGovSettings.ExecutorType.INTERNAL) ||
+                    selector != IGovPool.delegateTreasury.selector
+                ) revert InvalidInternalData();
             } else {
-                require(
-                    executorSettings == uint256(IGovSettings.ExecutorType.INTERNAL) &&
-                        (selector == IGovSettings.addSettings.selector ||
-                            selector == IGovSettings.editSettings.selector ||
-                            selector == IGovSettings.changeExecutors.selector ||
-                            selector == IGovUserKeeper.setERC20Address.selector ||
-                            selector == IGovUserKeeper.setERC721Address.selector ||
-                            selector == IGovPool.changeVotePower.selector ||
-                            selector == IGovPool.editDescriptionURL.selector ||
-                            selector == IGovPool.setNftMultiplierAddress.selector ||
-                            selector == IGovPool.changeVerifier.selector ||
-                            selector == IGovPool.delegateTreasury.selector ||
-                            selector == IGovPool.undelegateTreasury.selector ||
-                            selector == IGovPool.changeBABTRestriction.selector ||
-                            selector == IGovPool.setCreditInfo.selector),
-                    "Gov: invalid internal data"
-                );
+                if (
+                    executorSettings != uint256(IGovSettings.ExecutorType.INTERNAL) ||
+                    !(selector == IGovSettings.addSettings.selector ||
+                        selector == IGovSettings.editSettings.selector ||
+                        selector == IGovSettings.changeExecutors.selector ||
+                        selector == IGovUserKeeper.setERC20Address.selector ||
+                        selector == IGovUserKeeper.setERC721Address.selector ||
+                        selector == IGovPool.changeVotePower.selector ||
+                        selector == IGovPool.editDescriptionURL.selector ||
+                        selector == IGovPool.setNftMultiplierAddress.selector ||
+                        selector == IGovPool.changeVerifier.selector ||
+                        selector == IGovPool.delegateTreasury.selector ||
+                        selector == IGovPool.undelegateTreasury.selector ||
+                        selector == IGovPool.changeBABTRestriction.selector ||
+                        selector == IGovPool.setCreditInfo.selector)
+                ) revert InvalidInternalData();
             }
         }
     }
@@ -332,7 +347,7 @@ library GovPoolCreate {
         IGovPool.ProposalAction[] calldata actionsFor,
         IGovPool.ProposalAction[] calldata actionsAgainst
     ) internal view {
-        require(actionsFor.length == actionsAgainst.length, "Gov: invalid actions length");
+        if (actionsFor.length != actionsAgainst.length) revert InvalidActionsLength();
 
         address metaGovPool = _validateVote(
             actionsFor[actionsFor.length - 1],
@@ -352,18 +367,13 @@ library GovPoolCreate {
 
         metaGovPool = actionFor.executor;
 
-        require(metaGovPool == actionAgainst.executor, "Gov: invalid executor");
-        require(
-            IPoolRegistry(poolRegistryAddress).isGovPool(metaGovPool),
-            "Gov: invalid executor"
-        );
+        if (metaGovPool != actionAgainst.executor) revert InvalidExecutor();
+        if (!IPoolRegistry(poolRegistryAddress).isGovPool(metaGovPool)) revert InvalidExecutor();
 
         bytes4 selector = actionFor.data.getSelector();
 
-        require(
-            selector == IGovPool.vote.selector && selector == actionAgainst.data.getSelector(),
-            "Gov: invalid selector"
-        );
+        if (selector != IGovPool.vote.selector || selector != actionAgainst.data.getSelector())
+            revert InvalidSelector();
 
         (
             uint256 proposalIdFor,
@@ -378,13 +388,13 @@ library GovPoolCreate {
             uint256[] memory voteNftsAgainst
         ) = _decodeVoteFunction(actionAgainst);
 
-        require(proposalIdFor == proposalIdAgainst, "Gov: invalid proposal id");
-        require(isVoteForFor && !isVoteForAgainst, "Gov: invalid vote");
-        require(voteAmountFor == voteAmountAgainst, "Gov: invalid vote amount");
-        require(voteNftsFor.length == voteNftsAgainst.length, "Gov: invalid nfts length");
+        if (proposalIdFor != proposalIdAgainst) revert InvalidProposalId();
+        if (!isVoteForFor || isVoteForAgainst) revert InvalidVote();
+        if (voteAmountFor != voteAmountAgainst) revert InvalidVoteAmount();
+        if (voteNftsFor.length != voteNftsAgainst.length) revert InvalidNftsLength();
 
         for (uint256 i = 0; i < voteNftsFor.length; i++) {
-            require(voteNftsFor[i] == voteNftsAgainst[i], "Gov: invalid nft vote");
+            if (voteNftsFor[i] != voteNftsAgainst[i]) revert InvalidNftVote();
         }
     }
 
@@ -395,11 +405,11 @@ library GovPoolCreate {
     ) internal view {
         (, address metaUserKeeper, , , ) = IGovPool(metaGovPool).getHelperContracts();
 
-        require(actionFor.executor == actionAgainst.executor, "Gov: invalid executor");
+        if (actionFor.executor != actionAgainst.executor) revert InvalidExecutor();
 
         bytes4 selector = actionFor.data.getSelector();
 
-        require(selector == actionAgainst.data.getSelector(), "Gov: invalid selector");
+        if (selector != actionAgainst.data.getSelector()) revert InvalidSelector();
 
         if (selector == IERC20.approve.selector) {
             _validateApprove(actionFor, actionAgainst, metaUserKeeper);
@@ -408,7 +418,7 @@ library GovPoolCreate {
         } else if (selector == IGovPool.deposit.selector) {
             _validateDeposit(actionFor, actionAgainst, metaGovPool);
         } else {
-            revert("Gov: selector not supported");
+            revert InvalidSelector();
         }
     }
 
@@ -420,19 +430,14 @@ library GovPoolCreate {
         address metaToken = IGovUserKeeper(metaUserKeeper).tokenAddress();
         address metaNft = IGovUserKeeper(metaUserKeeper).nftAddress();
 
-        require(
-            actionFor.executor == metaToken || actionFor.executor == metaNft,
-            "Gov: invalid executor"
-        );
+        if (actionFor.executor != metaToken && actionFor.executor != metaNft)
+            revert InvalidExecutor();
 
         (address spenderFor, uint256 amountFor) = _decodeApproveFunction(actionFor);
         (address spenderAgainst, uint256 amountAgainst) = _decodeApproveFunction(actionAgainst);
 
-        require(
-            spenderFor == metaUserKeeper && spenderFor == spenderAgainst,
-            "Gov: invalid spender"
-        );
-        require(amountFor == amountAgainst, "Gov: invalid amount");
+        if (spenderFor != metaUserKeeper || spenderFor != spenderAgainst) revert InvalidExecutor();
+        if (amountFor != amountAgainst) revert InvalidAmount();
     }
 
     function _validateSetApprovalForAll(
@@ -442,18 +447,15 @@ library GovPoolCreate {
     ) internal view {
         address metaNft = IGovUserKeeper(metaUserKeeper).nftAddress();
 
-        require(actionFor.executor == metaNft, "Gov: invalid executor");
+        if (actionFor.executor != metaNft) revert InvalidExecutor();
 
         (address operatorFor, bool approvedFor) = _decodeSetApprovalForAllFunction(actionFor);
         (address operatorAgainst, bool approvedAgainst) = _decodeSetApprovalForAllFunction(
             actionAgainst
         );
 
-        require(
-            operatorFor == metaUserKeeper && operatorFor == operatorAgainst,
-            "Gov: invalid operator"
-        );
-        require(approvedFor == approvedAgainst, "Gov: invalid approve");
+        if (operatorFor != metaUserKeeper || operatorFor != operatorAgainst) revert InvalidExecutor();
+        if (approvedFor != approvedAgainst) revert InvalidApprove();
     }
 
     function _validateDeposit(
@@ -466,28 +468,26 @@ library GovPoolCreate {
             actionAgainst
         );
 
-        require(actionFor.executor == metaGovPool, "Gov: invalid executor");
-        require(amountFor == amountAgainst, "Gov: invalid amount");
-        require(actionFor.value == actionAgainst.value, "Gov: invalid value");
-        require(nftIdsFor.length == nftIdsAgainst.length, "Gov: invalid nfts length");
+        if (actionFor.executor != metaGovPool) revert InvalidExecutor();
+        if (amountFor != amountAgainst) revert InvalidAmount();
+        if (actionFor.value != actionAgainst.value) revert InvalidValue();
+        if (nftIdsFor.length != nftIdsAgainst.length) revert InvalidNftsLength();
 
         for (uint256 i = 0; i < nftIdsFor.length; i++) {
-            require(nftIdsFor[i] == nftIdsAgainst[i], "Gov: invalid nft deposit");
+            if (nftIdsFor[i] != nftIdsAgainst[i]) revert InvalidNftDeposit();
         }
     }
 
     function _handleDataForValidatorBalanceProposal(
         IGovPool.ProposalAction[] calldata actions
     ) internal pure {
-        require(actions.length == 1, "Gov: invalid executors length");
+        if (actions.length != 1) revert InvalidExecutorsLength();
 
         for (uint256 i; i < actions.length; i++) {
             bytes4 selector = actions[i].data.getSelector();
 
-            require(
-                actions[i].value == 0 && (selector == IGovValidators.changeBalances.selector),
-                "Gov: invalid internal data"
-            );
+            if (actions[i].value != 0 || selector != IGovValidators.changeBalances.selector)
+                revert InvalidInternalData();
         }
     }
 
