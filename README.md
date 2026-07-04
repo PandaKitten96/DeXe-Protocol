@@ -27,6 +27,165 @@ Your sponsorship helps fund:
 - Bug fixes and maintenance
 - Community support
 
+## Table of Contents
+
+- [Features](#features)
+- [Contract Architecture](#contract-architecture)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [Protocol Deployments](#protocol-deployments)
+- [Audits and Security](#audits-and-security)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+- **Flexible DAO creation** — deploy DAOs ranging from simple token-voting setups to complex multi-layer governance structures
+- **On-chain governance** — create, vote on, and execute proposals entirely on-chain
+- **NFT voting power** — boost voting weight using ERC-721 NFT multipliers
+- **Expert NFTs** — issue soulbound ERC-721 tokens to recognize community experts, granting special governance privileges
+- **Validator layer** — optional secondary committee that can veto or approve proposals before execution
+- **Delegated voting** — token holders can delegate their voting power to other addresses
+- **Upgradeable contracts** — all core contracts use the transparent proxy pattern (OpenZeppelin)
+- **SphereX integration** — runtime on-chain security engine to protect against exploits
+
+## Contract Architecture
+
+```
+contracts/
+├── core/               # Registry, price feed, and global configuration
+│   ├── ContractsRegistry.sol
+│   ├── CoreProperties.sol
+│   ├── PriceFeed.sol
+│   └── TokenAllocator.sol
+├── factory/            # Pool (DAO) creation and registry
+│   ├── PoolFactory.sol
+│   └── PoolRegistry.sol
+├── gov/                # Governance logic
+│   ├── GovPool.sol         # Main DAO entry point
+│   ├── proposals/          # Proposal execution helpers
+│   ├── settings/           # Configurable voting parameters
+│   ├── user-keeper/        # Token and NFT custody for voting
+│   ├── validators/         # Optional validator committee
+│   ├── voting/             # Voting mechanisms
+│   └── ERC20/ERC721/       # Governance tokens and expert NFTs
+├── user/               # User registry and KYC/SBT
+│   └── UserRegistry.sol
+├── libs/               # Shared Solidity libraries
+├── interfaces/         # All contract interfaces
+└── proxy/              # Upgradeable proxy contracts
+```
+
+**Key relationships:**
+1. `PoolFactory` deploys a new `GovPool` and its satellite contracts (`GovSettings`, `GovUserKeeper`, `GovValidators`) in a single transaction.
+2. `GovPool` coordinates proposal creation, voting, delegation, and execution.
+3. `GovUserKeeper` holds deposited ERC-20 tokens and ERC-721 NFTs used as voting power.
+4. `ContractsRegistry` acts as the single source of truth for all protocol-level contract addresses.
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v20.x or later
+- [npm](https://www.npmjs.com/) v8 or later
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/PandaKitten96/DeXe-Protocol.git
+cd DeXe-Protocol
+
+# Install dependencies
+npm install
+```
+
+### Configuration
+
+Copy the example environment file and fill in the required values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable           | Description                                      |
+| :----------------- | :----------------------------------------------- |
+| `PRIVATE_KEY`      | Deployer wallet private key                      |
+| `AUXILIARY_KEY`    | Secondary wallet private key                     |
+| `INFURA_KEY`       | Infura project ID (for forking / public RPCs)    |
+| `ETHERSCAN_KEY`    | Etherscan API key (for contract verification)    |
+| `BSCSCAN_KEY`      | BscScan API key                                  |
+| `POLYGONSCAN_KEY`  | Polygonscan API key                              |
+| `OPTIMISM_KEY`     | Optimism Etherscan API key                       |
+| `BASE_KEY`         | BaseScan API key                                 |
+| `COINMARKETCAP_KEY`| CoinMarketCap API key (for gas reporter)         |
+| `ENVIRONMENT`      | Deployment target (`PROD`, `STAGE`, `DEV`, etc.) |
+
+### Using as an npm Package
+
+DeXe Protocol contracts are published to npm and can be imported directly into your Solidity project:
+
+```bash
+npm install @dexe-network/dexe-protocol
+```
+
+```solidity
+import "@dexe-network/dexe-protocol/contracts/interfaces/gov/IGovPool.sol";
+```
+
+## Usage
+
+### Compile
+
+```bash
+npm run compile
+```
+
+### Test
+
+```bash
+npm run test
+```
+
+### Coverage
+
+```bash
+npm run coverage
+```
+
+### Lint
+
+```bash
+npm run lint-fix
+```
+
+### Run a Local Node
+
+```bash
+npm run private-network
+```
+
+### Deploy
+
+| Command                      | Network                  |
+| :--------------------------- | :----------------------- |
+| `npm run deploy-dev`         | Local Hardhat node       |
+| `npm run deploy-bsc`         | BNB Chain (mainnet)      |
+| `npm run deploy-chapel`      | BNB Chain Testnet        |
+| `npm run deploy-eth`         | Ethereum mainnet         |
+| `npm run deploy-sepolia`     | Ethereum Sepolia testnet |
+| `npm run deploy-amoy`        | Polygon Amoy testnet     |
+| `npm run deploy-sepolia-optimism` | Optimism Sepolia    |
+| `npm run deploy-sepolia-base`| Base Sepolia             |
+
+All mainnet / testnet deploy commands automatically verify contracts on the respective block explorer.
+
+### Generate TypeChain Bindings
+
+```bash
+npm run generate-types
+```
+
 ## Protocol Deployments
 
 ### Production (BNB Chain)
@@ -67,6 +226,8 @@ Your sponsorship helps fund:
 
 DeXe Protocol smart contracts have been audited by several external auditors, and the full reports are available on [this repository](https://github.com/dexe-network/DeXe-Protocol/tree/master/audits) or via the links provided below.
 
+If you discover a security vulnerability, **please do not open a public issue**. Report it privately via [GitHub Security Advisories](https://github.com/PandaKitten96/DeXe-Protocol/security/advisories/new) or contact the maintainers directly.
+
 ### DeXe Protocol smart contracts audit reports
 
 #### [Certik](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/certik-2023-05-04.pdf)
@@ -74,3 +235,11 @@ DeXe Protocol smart contracts have been audited by several external auditors, an
 #### [Hacken](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/hacken-2023-05-22.pdf)
 #### [Ambisafe](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/ambisafe-2023-07-18.pdf)
 #### [Ambisafe #2](https://github.com/dexe-network/DeXe-Protocol/blob/master/audits/ambisafe-2023-11-10.pdf)
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to report bugs, suggest features, and submit pull requests.
+
+## License
+
+DeXe Protocol is released under the [MIT License](https://opensource.org/licenses/MIT).
