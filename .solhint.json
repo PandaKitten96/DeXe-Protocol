@@ -6,7 +6,7 @@
     "prettier/prettier": "off",
     "modifier-name-mixedcase": "off",
     "no-empty-blocks": "off",
-    "func-visibility": "off",
+    "func-visibility": ["warn", {"ignoreConstructors": true}],
     "max-states-count": "off",
     "not-rely-on-time": "off",
     "compiler-version": "off"
