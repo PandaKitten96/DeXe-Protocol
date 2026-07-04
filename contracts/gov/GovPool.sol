@@ -148,16 +148,23 @@ contract GovPool is
         IGovUserKeeper(_govUserKeeper).setDependencies(contractsRegistry, bytes(""));
     }
 
+    /// @notice Unlocks tokens locked in concluded proposals for the specified user
+    /// @param user The address whose locked tokens should be freed
     function unlock(address user) external override onlyBABTHolder {
         _unlock(user);
     }
 
+    /// @notice Executes a passed proposal, running its on-chain actions
+    /// @param proposalId The id of the proposal to execute
     function execute(uint256 proposalId) external override onlyBABTHolder {
         _updateRewards(proposalId, msg.sender, RewardType.Execute);
 
         _proposals.execute(proposalId);
     }
 
+    /// @notice Attempts to execute a set of actions without reverting, returning success status
+    /// @param actions The list of proposal actions to attempt
+    /// @return True if all actions succeeded, false otherwise
     function tryExecute(ProposalAction[] calldata actions) external returns (bool) {
         try actions.tryExecute() {
             revert();
@@ -166,6 +173,9 @@ contract GovPool is
         }
     }
 
+    /// @notice Deposits ERC20 tokens and/or ERC721 NFTs into the governance pool for voting
+    /// @param amount The amount of ERC20 tokens to deposit (0 if depositing NFTs only)
+    /// @param nftIds The list of NFT token IDs to deposit
     function deposit(
         uint256 amount,
         uint256[] calldata nftIds
@@ -183,6 +193,10 @@ contract GovPool is
         emit Deposited(amount, nftIds, msg.sender);
     }
 
+    /// @notice Creates a new governance proposal
+    /// @param _descriptionURL IPFS URL or link describing the proposal
+    /// @param actionsOnFor On-chain actions executed if the proposal passes
+    /// @param actionsOnAgainst On-chain actions executed if the proposal is rejected
     function createProposal(
         string calldata _descriptionURL,
         ProposalAction[] calldata actionsOnFor,
@@ -193,6 +207,12 @@ contract GovPool is
         _updateRewards(proposalId, msg.sender, RewardType.Create);
     }
 
+    /// @notice Creates a new proposal and immediately casts a vote on it in a single transaction
+    /// @param _descriptionURL IPFS URL or link describing the proposal
+    /// @param actionsOnFor On-chain actions executed if the proposal passes
+    /// @param actionsOnAgainst On-chain actions executed if the proposal is rejected
+    /// @param voteAmount The amount of tokens to vote with
+    /// @param voteNftIds The list of NFT IDs to vote with
     function createProposalAndVote(
         string calldata _descriptionURL,
         ProposalAction[] calldata actionsOnFor,
@@ -209,12 +229,19 @@ contract GovPool is
         _vote(proposalId, voteAmount, voteNftIds, true);
     }
 
+    /// @notice Moves a succeeded proposal to the validators voting stage
+    /// @param proposalId The id of the proposal to forward to validators
     function moveProposalToValidators(uint256 proposalId) external override onlyBABTHolder {
         _proposals.moveProposalToValidators(proposalId);
 
         _updateRewards(proposalId, msg.sender, RewardType.Execute);
     }
 
+    /// @notice Casts a vote on a proposal
+    /// @param proposalId The id of the proposal to vote on
+    /// @param isVoteFor True to vote in favour, false to vote against
+    /// @param voteAmount The amount of tokens to vote with
+    /// @param voteNftIds The list of NFT IDs to vote with
     function vote(
         uint256 proposalId,
         bool isVoteFor,
@@ -226,12 +253,18 @@ contract GovPool is
         _vote(proposalId, voteAmount, voteNftIds, isVoteFor);
     }
 
+    /// @notice Cancels the caller's vote on a proposal
+    /// @param proposalId The id of the proposal to cancel the vote for
     function cancelVote(uint256 proposalId) external override onlyBABTHolder {
         _unlock(msg.sender);
 
         _proposals.cancelVote(_userInfos, proposalId);
     }
 
+    /// @notice Withdraws previously deposited tokens and/or NFTs
+    /// @param receiver The address that will receive the withdrawn assets
+    /// @param amount The amount of ERC20 tokens to withdraw (0 if withdrawing NFTs only)
+    /// @param nftIds The list of NFT token IDs to withdraw
     function withdraw(
         address receiver,
         uint256 amount,
@@ -249,6 +282,10 @@ contract GovPool is
         emit Withdrawn(amount, nftIds, receiver);
     }
 
+    /// @notice Delegates tokens and/or NFTs to another address to boost their voting power
+    /// @param delegatee The address to delegate to
+    /// @param amount The amount of tokens to delegate
+    /// @param nftIds The list of NFT IDs to delegate
     function delegate(
         address delegatee,
         uint256 amount,
@@ -274,6 +311,10 @@ contract GovPool is
         emit Delegated(msg.sender, delegatee, amount, nftIds, true);
     }
 
+    /// @notice Delegates tokens and/or NFTs from the treasury to an expert address; callable only via proposal execution
+    /// @param delegatee The expert address to receive the treasury delegation
+    /// @param amount The amount of treasury tokens to delegate
+    /// @param nftIds The list of treasury NFT IDs to delegate
     function delegateTreasury(
         address delegatee,
         uint256 amount,
@@ -317,6 +358,10 @@ contract GovPool is
         emit DelegatedTreasury(delegatee, amount, nftIds, true);
     }
 
+    /// @notice Revokes a previously created delegation of tokens and/or NFTs
+    /// @param delegatee The address from which to undelegate
+    /// @param amount The amount of tokens to undelegate
+    /// @param nftIds The list of NFT IDs to undelegate
     function undelegate(
         address delegatee,
         uint256 amount,
@@ -340,6 +385,10 @@ contract GovPool is
         emit Delegated(msg.sender, delegatee, amount, nftIds, false);
     }
 
+    /// @notice Revokes a treasury delegation of tokens and/or NFTs; callable only via proposal execution
+    /// @param delegatee The expert address whose treasury delegation to revoke
+    /// @param amount The amount of treasury tokens to undelegate
+    /// @param nftIds The list of treasury NFT IDs to undelegate
     function undelegateTreasury(
         address delegatee,
         uint256 amount,
@@ -361,6 +410,9 @@ contract GovPool is
         emit DelegatedTreasury(delegatee, amount, nftIds, false);
     }
 
+    /// @notice Claims voting rewards for a list of executed proposals on behalf of a user
+    /// @param proposalIds The list of proposal IDs to claim rewards for
+    /// @param user The address of the user to claim rewards for
     function claimRewards(
         uint256[] calldata proposalIds,
         address user
@@ -374,6 +426,10 @@ contract GovPool is
         }
     }
 
+    /// @notice Claims micropool (delegation) rewards for a delegator/delegatee pair
+    /// @param proposalIds The list of proposal IDs to claim rewards for
+    /// @param delegator The address that delegated voting power
+    /// @param delegatee The address that received and used the delegated voting power
     function claimMicropoolRewards(
         uint256[] calldata proposalIds,
         address delegator,
@@ -388,26 +444,39 @@ contract GovPool is
         }
     }
 
+    /// @notice Replaces the vote power calculation contract; callable only via proposal execution
+    /// @param votePower The address of the new vote power contract
     function changeVotePower(address votePower) external override onlyThis {
         _changeVotePower(votePower);
     }
 
+    /// @notice Updates the DAO's description URL; callable only via proposal execution
+    /// @param newDescriptionURL The new IPFS or web URL for the DAO description
     function editDescriptionURL(string calldata newDescriptionURL) external override onlyThis {
         descriptionURL = newDescriptionURL;
     }
 
+    /// @notice Updates the off-chain verifier address for signed result hashes; callable only via proposal execution
+    /// @param newVerifier The address of the new off-chain results verifier
     function changeVerifier(address newVerifier) external override onlyThis {
         _offChain.verifier = newVerifier;
     }
 
+    /// @notice Toggles whether only BABT holders can interact with the pool; callable only via proposal execution
+    /// @param onlyBABT True to restrict interactions to BABT holders only
     function changeBABTRestriction(bool onlyBABT) external override onlyThis {
         onlyBABTHolders = onlyBABT;
     }
 
+    /// @notice Sets the NFT multiplier contract address; callable only via proposal execution
+    /// @param nftMultiplierAddress The address of the NFT multiplier contract
     function setNftMultiplierAddress(address nftMultiplierAddress) external override onlyThis {
         _nftMultiplier = nftMultiplierAddress;
     }
 
+    /// @notice Configures the credit (flash-loan) limits per token; callable only via proposal execution
+    /// @param tokens The list of token addresses to configure credit limits for
+    /// @param amounts The corresponding maximum credit amounts per token
     function setCreditInfo(
         address[] calldata tokens,
         uint256[] calldata amounts
@@ -415,6 +484,10 @@ contract GovPool is
         _creditInfo.setCreditInfo(tokens, amounts);
     }
 
+    /// @notice Transfers credited token amounts to a destination address; callable only by the validators contract
+    /// @param tokens The list of token addresses to transfer
+    /// @param amounts The corresponding amounts to transfer per token
+    /// @param destination The address that receives the transferred tokens
     function transferCreditAmount(
         address[] calldata tokens,
         uint256[] calldata amounts,
@@ -423,6 +496,9 @@ contract GovPool is
         _creditInfo.transferCreditAmount(tokens, amounts, destination);
     }
 
+    /// @notice Saves off-chain voting results verified by a trusted signer
+    /// @param resultsHash IPFS hash or identifier of the off-chain results document
+    /// @param signature The ECDSA signature from the designated verifier over the results hash
     function saveOffchainResults(
         string calldata resultsHash,
         bytes calldata signature
@@ -434,10 +510,19 @@ contract GovPool is
 
     receive() external payable {}
 
+    /// @notice Returns the current state of a proposal
+    /// @param proposalId The id of the proposal to query
+    /// @return The ProposalState enum value for the given proposal
     function getProposalState(uint256 proposalId) external view override returns (ProposalState) {
         return _proposals.getProposalState(proposalId);
     }
 
+    /// @notice Returns the addresses of all helper contracts used by this pool
+    /// @return settings Address of the GovSettings contract
+    /// @return userKeeper Address of the GovUserKeeper contract
+    /// @return validators Address of the GovValidators contract
+    /// @return poolRegistry Address of the PoolRegistry contract
+    /// @return votePower Address of the vote power calculation contract
     function getHelperContracts()
         external
         view
@@ -459,6 +544,11 @@ contract GovPool is
         );
     }
 
+    /// @notice Returns the addresses of the NFT-related contracts used by this pool
+    /// @return nftMultiplier Address of the NFT voting power multiplier contract
+    /// @return expertNft Address of the pool-local expert NFT contract
+    /// @return dexeExpertNft Address of the protocol-wide DeXe expert NFT contract
+    /// @return babt Address of the Binance Account Bound Token (BABT) contract
     function getNftContracts()
         external
         view
@@ -468,10 +558,16 @@ contract GovPool is
         return (_nftMultiplier, address(_expertNft), address(_dexeExpertNft), address(_babt));
     }
 
+    /// @notice Returns the address of the pool registry contract
+    /// @return The address of the PoolRegistry
     function getPoolRegistryContract() external view override returns (address) {
         return _poolRegistry;
     }
 
+    /// @notice Returns a paginated list of proposals with their full view data
+    /// @param offset The index of the first proposal to return
+    /// @param limit The maximum number of proposals to return
+    /// @return proposals Array of ProposalView structs
     function getProposals(
         uint256 offset,
         uint256 limit
@@ -479,10 +575,16 @@ contract GovPool is
         return _proposals.getProposals(offset, limit);
     }
 
+    /// @notice Returns the number of proposals a user is currently actively voting in
+    /// @param user The address of the user to query
+    /// @return The count of active proposals for the user
     function getUserActiveProposalsCount(address user) external view override returns (uint256) {
         return _userInfos[user].votedInProposals.length();
     }
 
+    /// @notice Returns the minimum quorum (in raw token units) required for a proposal to pass
+    /// @param proposalId The id of the proposal to query
+    /// @return The quorum threshold in raw voting power units, or 0 if the proposal does not exist
     function getProposalRequiredQuorum(
         uint256 proposalId
     ) external view override returns (uint256) {
@@ -495,6 +597,11 @@ contract GovPool is
         return _govUserKeeper.getTotalPower().ratio(core.settings.quorum, PERCENTAGE_100);
     }
 
+    /// @notice Returns aggregate and individual vote totals for a proposal and voter
+    /// @param proposalId The id of the proposal
+    /// @param voter The address of the voter to query
+    /// @param voteType The category of vote (Personal, Micropool, Treasury — not DelegatedVote)
+    /// @return Total raw votes for, total raw votes against, voter's raw votes, and whether the voter voted for
     function getTotalVotes(
         uint256 proposalId,
         address voter,
@@ -513,6 +620,11 @@ contract GovPool is
         );
     }
 
+    /// @notice Returns detailed vote information for a specific voter, proposal, and vote type
+    /// @param proposalId The id of the proposal
+    /// @param voter The address of the voter
+    /// @param voteType The category of vote to query
+    /// @return voteInfo A VoteInfoView struct containing token amounts, NFT ids, and direction
     function getUserVotes(
         uint256 proposalId,
         address voter,
@@ -531,12 +643,20 @@ contract GovPool is
             });
     }
 
+    /// @notice Returns the token and NFT amounts that a delegator can withdraw
+    /// @param delegator The address of the delegator
+    /// @return tokens The amount of ERC20 tokens available for withdrawal
+    /// @return nfts The list of NFT IDs available for withdrawal
     function getWithdrawableAssets(
         address delegator
     ) external view override returns (uint256 tokens, uint256[] memory nfts) {
         return _userInfos.getWithdrawableAssets(delegator);
     }
 
+    /// @notice Returns pending reward amounts across multiple proposals for a user
+    /// @param user The address of the user to query
+    /// @param proposalIds The list of proposal IDs to check rewards for
+    /// @return A PendingRewardsView struct with token and NFT reward amounts
     function getPendingRewards(
         address user,
         uint256[] calldata proposalIds
@@ -544,6 +664,11 @@ contract GovPool is
         return _userInfos.getPendingRewards(_proposals, user, proposalIds);
     }
 
+    /// @notice Returns the delegator's share of rewards earned through a delegatee's votes
+    /// @param proposalIds The list of proposal IDs to calculate rewards for
+    /// @param delegator The address of the delegating user
+    /// @param delegatee The address that voted with the delegated power
+    /// @return A DelegatorRewards struct with reward breakdown per proposal
     function getDelegatorRewards(
         uint256[] calldata proposalIds,
         address delegator,
@@ -552,10 +677,15 @@ contract GovPool is
         return _userInfos.getDelegatorRewards(_proposals, proposalIds, delegator, delegatee);
     }
 
+    /// @notice Returns the configured credit limits for each token
+    /// @return An array of CreditInfoView structs with token address and credit amount
     function getCreditInfo() external view override returns (CreditInfoView[] memory) {
         return _creditInfo.getCreditInfo();
     }
 
+    /// @notice Returns the off-chain verifier address and the last saved results hash
+    /// @return validator The address authorised to sign off-chain results
+    /// @return resultsHash The IPFS hash or identifier of the last submitted results
     function getOffchainInfo()
         external
         view
@@ -565,6 +695,10 @@ contract GovPool is
         return (_offChain.verifier, _offChain.resultsHash);
     }
 
+    /// @notice Returns the EIP-712 sign hash used to verify off-chain result submissions
+    /// @param resultHash The results identifier string to hash
+    /// @param user The address of the user who will submit the results
+    /// @return The bytes32 sign hash to be signed by the verifier
     function getOffchainSignHash(
         string calldata resultHash,
         address user
@@ -572,6 +706,9 @@ contract GovPool is
         return resultHash.getSignHash(user);
     }
 
+    /// @notice Returns whether a user holds an expert NFT (pool-local or protocol-wide)
+    /// @param user The address to check for expert status
+    /// @return True if the user is an expert, false otherwise
     function getExpertStatus(address user) public view override returns (bool) {
         return _expertNft.isExpert(user) || _dexeExpertNft.isExpert(user);
     }

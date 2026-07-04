@@ -39,6 +39,9 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         _;
     }
 
+    /// @notice Resolves and stores the PoolFactory and SphereX engine addresses from the ContractsRegistry
+    /// @param contractsRegistry The address of the ContractsRegistry
+    /// @param data Arbitrary initialisation data forwarded to the parent implementation
     function setDependencies(address contractsRegistry, bytes memory data) public override {
         super.setDependencies(contractsRegistry, data);
 
@@ -46,6 +49,9 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         _poolSphereXEngine = IContractsRegistry(contractsRegistry).getPoolSphereXEngineContract();
     }
 
+    /// @notice Registers a newly-deployed proxy pool under the given pool type name; callable only by the PoolFactory
+    /// @param name The pool type name (e.g. "GOV_POOL")
+    /// @param poolAddress The address of the deployed proxy pool
     function addProxyPool(
         string memory name,
         address poolAddress
@@ -53,6 +59,8 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         _addProxyPool(name, poolAddress);
     }
 
+    /// @notice Enables or disables the SphereX security engine across all registered pool beacons
+    /// @param on True to activate the engine, false to disable it (sets engine address to address(0))
     function toggleSphereXEngine(bool on) external onlyOwner {
         address sphereXEngine = on ? _poolSphereXEngine : address(0);
 
@@ -68,6 +76,9 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         _setSphereXEngine(POLYNOMIAL_POWER_NAME, sphereXEngine);
     }
 
+    /// @notice Marks the given function selectors as SphereX-protected on the beacon for the specified pool type
+    /// @param poolName The registered pool type name whose beacon should be configured
+    /// @param selectors The function selectors to add to the protected set
     function protectPoolFunctions(
         string calldata poolName,
         bytes4[] calldata selectors
@@ -75,6 +86,9 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         SphereXProxyBase(getProxyBeacon(poolName)).addProtectedFuncSigs(selectors);
     }
 
+    /// @notice Removes the given function selectors from the SphereX-protected set on the specified pool type's beacon
+    /// @param poolName The registered pool type name whose beacon should be configured
+    /// @param selectors The function selectors to remove from the protected set
     function unprotectPoolFunctions(
         string calldata poolName,
         bytes4[] calldata selectors
@@ -82,6 +96,9 @@ contract PoolRegistry is IPoolRegistry, MultiOwnablePoolContractsRegistry {
         SphereXProxyBase(getProxyBeacon(poolName)).removeProtectedFuncSigs(selectors);
     }
 
+    /// @notice Returns whether the given address is a registered GovPool
+    /// @param potentialPool The address to check
+    /// @return True if `potentialPool` is a registered GovPool proxy, false otherwise
     function isGovPool(address potentialPool) external view override returns (bool) {
         return isPool(GOV_POOL_NAME, potentialPool);
     }

@@ -57,6 +57,8 @@ contract GovSettings is IGovSettings, OwnableUpgradeable {
         newSettingsId = settingsId;
     }
 
+    /// @notice Adds one or more new proposal settings configurations
+    /// @param _settings Array of ProposalSettings structs to register
     function addSettings(ProposalSettings[] calldata _settings) external override onlyOwner {
         uint256 settingsId = newSettingsId;
 
@@ -68,6 +70,9 @@ contract GovSettings is IGovSettings, OwnableUpgradeable {
         newSettingsId = settingsId;
     }
 
+    /// @notice Edits existing proposal settings by their IDs
+    /// @param settingsIds Array of settings IDs to update
+    /// @param _settings Array of replacement ProposalSettings structs (must match settingsIds length)
     function editSettings(
         uint256[] calldata settingsIds,
         ProposalSettings[] calldata _settings
@@ -80,6 +85,9 @@ contract GovSettings is IGovSettings, OwnableUpgradeable {
         }
     }
 
+    /// @notice Maps executor addresses to settings IDs, controlling which rules govern each executor
+    /// @param executors Array of executor contract addresses to configure
+    /// @param settingsIds Array of settings IDs to assign to each executor (must match executors length)
     function changeExecutors(
         address[] calldata executors,
         uint256[] calldata settingsIds
@@ -109,14 +117,21 @@ contract GovSettings is IGovSettings, OwnableUpgradeable {
         return settings[settingsId].duration > 0;
     }
 
+    /// @notice Returns the default proposal settings (used when no executor-specific settings exist)
+    /// @return The ProposalSettings struct for the DEFAULT executor type
     function getDefaultSettings() external view override returns (ProposalSettings memory) {
         return settings[uint256(ExecutorType.DEFAULT)];
     }
 
+    /// @notice Returns the internal proposal settings (used for proposals that modify the DAO itself)
+    /// @return The ProposalSettings struct for the INTERNAL executor type
     function getInternalSettings() external view override returns (ProposalSettings memory) {
         return settings[uint256(ExecutorType.INTERNAL)];
     }
 
+    /// @notice Returns the proposal settings associated with a specific executor address
+    /// @param executor The executor contract address to look up
+    /// @return The ProposalSettings struct mapped to the given executor
     function getExecutorSettings(
         address executor
     ) external view override returns (ProposalSettings memory) {

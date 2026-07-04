@@ -62,6 +62,9 @@ contract PoolFactory is IPoolFactory, AbstractPoolFactory {
         address sender
     );
 
+    /// @notice Resolves and stores dependency addresses from the ContractsRegistry
+    /// @param contractsRegistry The address of the ContractsRegistry
+    /// @param data Arbitrary initialisation data forwarded to the parent implementation
     function setDependencies(address contractsRegistry, bytes memory data) public override {
         super.setDependencies(contractsRegistry, data);
 
@@ -74,6 +77,10 @@ contract PoolFactory is IPoolFactory, AbstractPoolFactory {
         _allocator = ITokenAllocator(registry.getTokenAllocatorContract());
     }
 
+    /// @notice Deploys a full GovPool suite (validators, keeper, settings, NFTs, voting power, proposals)
+    /// @dev Emits DaoPoolDeployed on success; all sub-contracts are registered in the PoolRegistry
+    /// @param parameters The deployment configuration including name, voting parameters, and keeper settings
+    /// @return The address of the deployed GovPool proxy
     function deployGovPool(
         GovPoolDeployParams calldata parameters
     ) public override returns (address) {
@@ -163,6 +170,14 @@ contract PoolFactory is IPoolFactory, AbstractPoolFactory {
         return (poolProxy);
     }
 
+    /// @notice Clones a token contract, optionally sets up a Merkle-based token allocation, then deploys a GovPool
+    /// @param contractToClone The token implementation address to clone
+    /// @param initializeCode The calldata used to initialise the cloned token
+    /// @param expectedPoolAddress The address the caller expects the GovPool to be deployed at (sanity check)
+    /// @param parameters The GovPool deployment parameters (must reference the cloned token address)
+    /// @param merkleRoot The Merkle root for token allocation; pass bytes32(0) to skip allocation
+    /// @param descriptionURL URL pointing to the allocation description/metadata
+    /// @param amountToAllocate The token amount to transfer to the allocator for distribution
     function createTokenAndDeployPool(
         address contractToClone,
         bytes calldata initializeCode,
@@ -199,6 +214,11 @@ contract PoolFactory is IPoolFactory, AbstractPoolFactory {
         }
     }
 
+    /// @notice Predicts the deterministic address of a token that will be cloned before deployment
+    /// @param tokenToClone The token implementation address that would be cloned
+    /// @param deployer The address of the account that will call the deployment transaction
+    /// @param poolName The unique pool name used to derive the CREATE2 salt
+    /// @return predictedAddress The deterministic address of the future token clone
     function predictTokenAddress(
         address tokenToClone,
         address deployer,
@@ -208,6 +228,10 @@ contract PoolFactory is IPoolFactory, AbstractPoolFactory {
         predictedAddress = tokenToClone.predictClonedAddress(salt);
     }
 
+    /// @notice Predicts the deterministic addresses of all contracts that would be deployed for a given pool name
+    /// @param deployer The address of the account that will call the deployment transaction
+    /// @param poolName The unique pool name used to derive the CREATE2 salt; returns zero addresses if empty
+    /// @return predictedAddresses Struct containing the predicted addresses for GovPool and all satellite contracts
     function predictGovAddresses(
         address deployer,
         string calldata poolName
